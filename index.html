@@ -1620,8 +1620,8 @@ const hand=(()=>{const skin=M(0xf1c9a5),sleeve=M(0xda291c),cuff=M(0xffc72c),rig=
   return GC[key]={M:Mg,t}}
 
  const restQ=rig.quaternion.clone(),rp=new THREE.Vector3(),gp=new THREE.Vector3(),gq=new THREE.Quaternion(),gm=new THREE.Matrix4(),gs3=new THREE.Vector3();
- let px=.27,py=-.22,pz=-.7,curl=-.12,bob=0,t=0,cur=null,grip=null,g=0,fc=0,lyaw=0,lpit=0,sx=0,sy=0,vx=0,vy=0,lean=0,sprW=0,dip=0,air=0;
- return{root,kick:0,update(dt){t+=dt;const k=player.keys,live=game.started&&!shopUI.open,mv=live&&(k.KeyW||k.KeyA||k.KeyS||k.KeyD);
+ let px=.27,py=-.22,pz=-.7,curl=-.12,bob=0,t=0,cur=null,grip=null,g=0,fc=0,lyaw=0,lpit=0,sx=0,sy=0,vx=0,vy=0,lean=0,sprW=0,dip=0,air=0,fist=0,fistTarget=0;
+ return{root,kick:0,grabAnim(){fistTarget=1;},releaseGrab(){fistTarget=0;},update(dt){t+=dt;fist+=(fistTarget-fist)*Math.min(1,dt*22);const k=player.keys,live=game.started&&!shopUI.open,mv=live&&(k.KeyW||k.KeyA||k.KeyS||k.KeyD);
   if(mv)bob+=dt*8.5;
   let dy=player.yaw-lyaw,dp=player.pitch-lpit;lyaw=player.yaw;lpit=player.pitch;dy=Math.atan2(Math.sin(dy),Math.cos(dy));
   sx=Math.max(-.025,Math.min(.025,sx+dy*.15));sy=Math.max(-.02,Math.min(.02,sy-dp*.13));
@@ -1632,6 +1632,8 @@ const hand=(()=>{const skin=M(0xf1c9a5),sleeve=M(0xda291c),cuff=M(0xffc72c),rig=
   dip=Math.max(0,dip-dt*5);
   if(this.kick>0){this.kick-=dt;kp=Math.sin(Math.min(1,this.kick/.18)*Math.PI);tz-=.12*kp;ty+=.025*kp;if(!h)tc=-.7}
   tx-=sprW*.04;ty-=sprW*.035;tz+=sprW*.05;tc-=sprW*.06;
+  // Reach slightly forward while the E-key grab pose is held. The fist value eases the reach in and out.
+  tz-=.14*fist;ty+=.012*fist;
   const a=Math.min(1,dt*14);px+=(tx-px)*a;py+=(ty-py)*a;pz+=(tz-pz)*a;curl+=(tc-curl)*a;
   const sb=1+sprW*.8,ox=sx+Math.sin(bob)*.007*sb+lean*.01,oy=sy+Math.abs(Math.cos(bob))*.008*sb*(mv?1:0)-air*.035-dip*.03+Math.sin(t*1.6)*.0025,oz=dip*.04+(mv?Math.sin(bob*2)*.004:0);
   if(h&&live&&!(h===inv.gi&&inv.st=='eat')){const hm=h.mesh;hm.position.x+=ox;hm.position.y+=oy;hm.position.z+=oz-.1*kp}
@@ -1641,7 +1643,13 @@ const hand=(()=>{const skin=M(0xf1c9a5),sleeve=M(0xda291c),cuff=M(0xffc72c),rig=
   if(g>0){root.position.lerpVectors(rp,gp,gs);rig.quaternion.copy(restQ).slerp(gq,gs)}else{root.position.copy(rp);rig.quaternion.copy(restQ)}
   root.rotation.set((sprW*.3-vy*.12)*f1,vx*.15*f1,(-vx*.12)*f1);
   const mw=mv?1:0;
-  D.forEach((d,i)=>{const c=g>0?-grip.t[i]*fc:0,fd=0;d.g.rotation.x=curl*d.r1*f1+c*d.a*gs+fd;d.h.rotation.x=curl*d.r2*f1+c*d.b*gs+fd*.7;if(d.e)d.e.rotation.x=curl*d.r3*f1+c*d.c*gs+fd*.5})}}})();
+  // During a grab, swing the thumb inward across the palm toward the curled fingers.
+  thumb.rotation.y=.55-1.5*fist;
+  thumb.rotation.x=-.18*fist;
+  thumb.rotation.z=.12*fist;
+  t2.rotation.y=-1.0*fist;
+  t2.rotation.x=-.22*fist;
+  D.forEach((d,i)=>{const c=g>0?-grip.t[i]*fc:0,fd=0,knuckle=-1.05*fist;d.g.rotation.x=curl*d.r1*f1+c*d.a*gs+knuckle*d.r1*f1+fd;d.h.rotation.x=curl*d.r2*f1+c*d.b*gs+knuckle*d.r2*f1+fd*.7;if(d.e)d.e.rotation.x=curl*d.r3*f1+c*d.c*gs+knuckle*d.r3*f1+fd*.5})}}})();
 
 /* ---------- Shotgun ---------- */
 const gun=(()=>{const g=new THREE.Group(),dark=M(0x2a2a2e,{metalness:.6,roughness:.4}),wood=M(0x6b3f1d),skin=M(0xf1c9a5),flM=new THREE.MeshBasicMaterial({color:0xffcc55,depthTest:false});
@@ -1929,10 +1937,10 @@ document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElemen
 document.addEventListener('pointerlockerror',retry);
 addEventListener('mousedown',()=>{if(game.started&&!shopUI.open&&!fryUI.open&&!bookUI.open&&!document.pointerLockElement&&$('start').style.display=='none'){tries=0;lock()}});
 
-addEventListener('blur',()=>{for(const k in player.keys)player.keys[k]=false;shk.down=false;shk.fry=false;shk.lx=shk.ly=0});
+addEventListener('blur',()=>{for(const k in player.keys)player.keys[k]=false;hand.releaseGrab();shk.down=false;shk.fry=false;shk.lx=shk.ly=0});
 addEventListener('mousemove',e=>{if(!game.started||isPaused()||shopUI.open||fryUI.open||bookUI.open||!(document.pointerLockElement||noLock))return;
  shakeMove(e);player.yaw-=e.movementX*.0022*cfg.sens;player.pitch=Math.max(-1.4,Math.min(1.4,player.pitch-e.movementY*.0022*cfg.sens))});
-addEventListener('keyup',e=>player.keys[e.code]=false);
+addEventListener('keyup',e=>{player.keys[e.code]=false;if(e.code=='KeyE')hand.releaseGrab()});
 addEventListener('keydown',e=>{if(isPaused())return;
  if(bookUI.open){e.preventDefault();if(e.repeat)return;if(e.code=='KeyB'||e.code=='KeyE'||e.code=='Escape'||e.code=='Tab'||e.code=='KeyQ')bookUI.close();else if(e.code=='ArrowRight'||e.code=='KeyD')bookUI.go(1);else if(e.code=='ArrowLeft'||e.code=='KeyA')bookUI.go(-1);else{const n=+e.code.replace(/Digit|Numpad/,'');if(n>=1&&n<=RBOOK.length)bookUI.go(0,n-1)}return}
  if(fryUI.open){e.preventDefault();if(e.code=='KeyE'||e.code=='Escape'||e.code=='Tab'||e.code=='KeyQ'){if(!e.repeat)fryUI.close()}else if(!e.repeat){const n=+e.code.replace(/Digit|Numpad/,'');if(n>=1&&n<=FRYMENU.length)fryUI.pick(n-1)}return}
@@ -1942,7 +1950,15 @@ addEventListener('keydown',e=>{if(isPaused())return;
  if(e.code=='KeyB'){if(!e.repeat)bookUI.show();return}
  const t=lookTarget();
  if(e.code=='KeyF'){if(!e.repeat){if(t===gunStand||t instanceof HideSpot)t.use(game);else if(gun.on)ui.toast('Look at a green spot (wall by the computer, or the cardboard box) and press [E]','#fa5')}return}
- if(e.code=='KeyE'){if(t)t.use(game)}
+ if(e.code=='KeyE'&&!e.repeat){
+  if(t){
+   const heldBefore=game.held,curBefore=inv.cur,giBefore=inv.gi,stBefore=inv.st;
+   const stockBefore=JSON.stringify(game.stock);
+   t.use(game);
+   // Only make the loose-fist gesture when E did not pick up or equip an item.
+   if(game.held===heldBefore&&inv.cur===curBefore&&inv.gi===giBefore&&inv.st===stBefore&&JSON.stringify(game.stock)===stockBefore)hand.grabAnim();
+  }else hand.grabAnim();
+ }
  if(e.code=='KeyQ'){if(inv.cur>=0&&!game.held){if(!e.repeat&&!inv.busy())inv.stow()}else if(game.held){hand.kick=.18;dropHeld(true,.5)}else if(t==game.tray){game.tray.clear();sfx.trash()}else if(t==assembly){assembly.clear();sfx.trash()}else if(t==mixer){mixer.clear();sfx.trash()}}});
 
 let last=performance.now(),wasPaused=false,needR=true,fN=0,fAcc=0,fCnt=0,fWarm=0,dprCur=Math.min(devicePixelRatio,1.5),tgC=null;
